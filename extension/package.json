@@ -1,0 +1,13 @@
+{
+  "name": "scogo-it-support-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for Scogo AI IT Support",
+  "scripts": {
+    "build": "echo 'Building extension...'",
+    "pack": "zip -r extension.zip * -x '*.DS_Store' -x 'node_modules/*' -x 'package*.json'"
+  },
+  "dependencies": {
+    "livekit-client": "^2.0.0"
+  },
+  "devDependencies": {}
+}

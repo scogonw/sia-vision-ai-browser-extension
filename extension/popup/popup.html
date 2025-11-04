@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scogo AI IT Support</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <img src="../icons/icon48.png" alt="Scogo AI" class="logo">
+      <h1>Scogo IT Support</h1>
+    </div>
+
+    <!-- Auth View -->
+    <div id="auth-view" class="view" style="display: none;">
+      <div class="content">
+        <p class="message">Sign in to get instant IT support</p>
+        <button id="auth-btn" class="btn btn-primary">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
+          </svg>
+          Sign In
+        </button>
+      </div>
+    </div>
+
+    <!-- Idle View -->
+    <div id="idle-view" class="view" style="display: none;">
+      <div class="content">
+        <div class="status-indicator status-ready"></div>
+        <p class="message">Ready to help you resolve IT issues</p>
+        <button id="start-support-btn" class="btn btn-primary btn-large">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          Get Support
+        </button>
+      </div>
+      <div class="footer">
+        <button id="logout-btn" class="btn-text">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Connecting View -->
+    <div id="connecting-view" class="view" style="display: none;">
+      <div class="content">
+        <div class="spinner"></div>
+        <p class="message">Connecting to IT Support...</p>
+        <p class="message-sub">This will only take a moment</p>
+      </div>
+    </div>
+
+    <!-- Connected View -->
+    <div id="connected-view" class="view" style="display: none;">
+      <div class="content">
+        <div class="status-indicator status-connected"></div>
+        <p class="message">Connected to AI Support Agent</p>
+
+        <div class="session-info">
+          <div class="info-row">
+            <span class="label">Status:</span>
+            <span id="session-status" class="value">Active</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Duration:</span>
+            <span id="session-duration" class="value">00:00</span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="mute-btn" class="btn btn-control">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
+            </svg>
+            <span>Mute</span>
+          </button>
+
+          <button id="end-call-btn" class="btn btn-danger">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 1L1 23M17 7l-10 10"/>
+            </svg>
+            <span>End Session</span>
+          </button>
+        </div>
+
+        <div class="status-messages">
+          <p id="screen-share-status" class="status-msg">
+            <svg class="icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            Screen sharing active
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error View -->
+    <div id="error-view" class="view" style="display: none;">
+      <div class="content">
+        <div class="error-icon">⚠️</div>
+        <p id="error-message" class="message">Something went wrong</p>
+        <button id="retry-btn" class="btn btn-primary">Try Again</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
