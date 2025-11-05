@@ -32,9 +32,11 @@ ensureIcons()
 
 const define = {}
 const exposedEnvKeys = [
+  'NODE_ENV',
   'BACKEND_BASE_URL',
   'GOOGLE_OAUTH_CLIENT_ID',
-  'GOOGLE_OAUTH_REDIRECT_URI'
+  'GOOGLE_OAUTH_REDIRECT_URI',
+  'ALLOW_DEV_TOKENS'
 ]
 
 for (const key of exposedEnvKeys) {

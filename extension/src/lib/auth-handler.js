@@ -24,12 +24,22 @@ const isExpired = (expiresAt) => {
 
 export class AuthHandler {
   async isAuthenticated () {
+    // In dev mode with dev tokens enabled, always return true
+    if (config.allowDevTokens && !config.googleClientId) {
+      return true
+    }
+
     const token = await getFromStorage(AUTH_TOKEN_KEY)
     const expiresAt = await getFromStorage(EXPIRES_AT_KEY)
     return Boolean(token && !isExpired(expiresAt))
   }
 
   async getToken () {
+    // In dev mode with dev tokens enabled, return a dev token
+    if (config.allowDevTokens && !config.googleClientId) {
+      return 'dev-token'
+    }
+
     const token = await getFromStorage(AUTH_TOKEN_KEY)
     const expiresAt = await getFromStorage(EXPIRES_AT_KEY)
     if (token && !isExpired(expiresAt)) {
@@ -40,6 +50,18 @@ export class AuthHandler {
 
   async authenticate () {
     ensureConfig()
+
+    // In dev mode with dev tokens enabled, automatically "authenticate" without Google
+    if (config.allowDevTokens && !config.googleClientId) {
+      // Store a dev token
+      await setInStorage({
+        [AUTH_TOKEN_KEY]: 'dev-token',
+        [EXPIRES_AT_KEY]: Date.now() + (365 * 24 * 60 * 60 * 1000), // 1 year
+        [USER_INFO_KEY]: 'dev-user@localhost'
+      })
+      return 'dev-token'
+    }
+
     if (!config.googleClientId) {
       throw new Error('Google OAuth client ID is not configured')
     }
