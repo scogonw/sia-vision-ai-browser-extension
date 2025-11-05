@@ -34,12 +34,13 @@ for (const key of exposedEnvKeys) {
 
 await build({
   entryPoints: {
-    'background.js': join(__dirname, '../src/background/index.js'),
-    'popup/popup.js': join(__dirname, '../src/popup/popup.js')
+    'background': join(__dirname, '../src/background/index.js'),
+    'popup/popup': join(__dirname, '../src/popup/popup.js')
   },
   bundle: true,
   format: 'esm',
   outdir,
+  outExtension: { '.js': '.js' },
   sourcemap: true,
   target: ['chrome110'],
   loader: {
@@ -49,9 +50,19 @@ await build({
 })
 
 const manifest = JSON.parse(readFileSync(join(__dirname, '../src/manifest.json'), 'utf-8'))
-if (manifest.oauth2 && env.GOOGLE_OAUTH_CLIENT_ID) {
-  manifest.oauth2.client_id = env.GOOGLE_OAUTH_CLIENT_ID
+
+// Configure OAuth client ID
+if (manifest.oauth2) {
+  if (env.GOOGLE_OAUTH_CLIENT_ID) {
+    manifest.oauth2.client_id = env.GOOGLE_OAUTH_CLIENT_ID
+  } else {
+    console.warn('⚠️  GOOGLE_OAUTH_CLIENT_ID not set - OAuth will not work')
+    // Set a placeholder to prevent manifest errors
+    manifest.oauth2.client_id = 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com'
+  }
 }
+
+// Add backend URL to host permissions
 if (manifest.host_permissions && env.BACKEND_BASE_URL) {
   try {
     const backendUrl = new URL(env.BACKEND_BASE_URL)
@@ -63,6 +74,7 @@ if (manifest.host_permissions && env.BACKEND_BASE_URL) {
     console.warn('Invalid BACKEND_BASE_URL for host permissions', error)
   }
 }
+
 writeFileSync(join(outdir, 'manifest.json'), JSON.stringify(manifest, null, 2))
 cpSync(join(__dirname, '../src/popup/popup.html'), join(outdir, 'popup/popup.html'))
 cpSync(join(__dirname, '../src/popup/popup.css'), join(outdir, 'popup/popup.css'))
