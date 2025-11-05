@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scogo AI Support</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <img src="../icons/icon48.png" alt="Scogo" class="logo" />
+        <div>
+          <h1>Scogo AI Support</h1>
+          <p id="status-text">Authenticate to begin.</p>
+        </div>
+      </header>
+      <section id="auth-section" class="section">
+        <button id="login-button" class="primary">Sign in with Google</button>
+      </section>
+      <section id="session-section" class="section hidden">
+        <button id="start-button" class="primary">Get Support</button>
+        <button id="end-button" class="secondary hidden">End Session</button>
+        <div class="controls hidden" id="controls">
+          <button id="mute-button" class="secondary">Mute</button>
+          <button id="feedback-button" class="secondary">Send Feedback</button>
+        </div>
+      </section>
+      <section id="feedback-section" class="section hidden">
+        <label for="rating">Rate your session</label>
+        <select id="rating">
+          <option value="5">5 - Excellent</option>
+          <option value="4">4 - Good</option>
+          <option value="3">3 - Average</option>
+          <option value="2">2 - Poor</option>
+          <option value="1">1 - Very Poor</option>
+        </select>
+        <textarea id="comment" placeholder="Additional comments"></textarea>
+        <button id="submit-feedback" class="primary">Submit</button>
+      </section>
+      <div id="error" class="error hidden"></div>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

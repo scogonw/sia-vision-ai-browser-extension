@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    environment:
+      PORT: ${PORT:-4000}
+    ports:
+      - "${PORT:-4000}:${PORT:-4000}"
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: ./agent
+    env_file:
+      - .env
+    environment:
+      KNOWLEDGE_BASE_PATH: /app/agent/knowledge_base
+    volumes:
+      - ./agent/knowledge_base:/app/agent/knowledge_base:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  extension-builder:
+    image: node:20-bullseye
+    profiles: ["build"]
+    working_dir: /workspace
+    volumes:
+      - ./extension:/workspace
+      - ./.env:/workspace/.env:ro
+    command: sh -c "rm -rf node_modules && npm ci && npm run build"
