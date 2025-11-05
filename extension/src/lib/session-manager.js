@@ -40,7 +40,14 @@ export class SessionManager {
     await this.room.connect(host, livekitToken)
 
     await this.publishMicrophone()
-    await this.publishScreenShare()
+
+    // Try to publish screen share, but don't fail if user denies permission
+    try {
+      await this.publishScreenShare()
+    } catch (error) {
+      console.warn('[SessionManager] Screen share permission denied or unavailable:', error.message)
+      // Continue without screen share - audio-only session is still valid
+    }
 
     this.state = 'connected'
     return { sessionId, roomName }
@@ -130,13 +137,21 @@ export class SessionManager {
     this.state = 'idle'
   }
 
-  muteMicrophone (mute) {
+  async setMicrophoneMuted (muted) {
     if (!this.audioTrack) return
     if (typeof this.audioTrack.setMuted === 'function') {
-      this.audioTrack.setMuted(mute)
+      this.audioTrack.setMuted(muted)
     } else {
-      this.audioTrack.muted = mute
+      this.audioTrack.muted = muted
     }
+  }
+
+  async startScreenShare () {
+    if (this.screenTrack) {
+      console.warn('[SessionManager] Screen share already active')
+      return
+    }
+    await this.publishScreenShare()
   }
 
   registerEvents (sessionId) {

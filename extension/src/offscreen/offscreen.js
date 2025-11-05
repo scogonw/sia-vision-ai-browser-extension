@@ -32,6 +32,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break
         }
 
+        case 'START_SCREEN_SHARE': {
+          console.log('[Offscreen] Starting screen share')
+          await sessionManager.startScreenShare()
+          sendResponse({ success: true })
+          break
+        }
+
         default:
           sendResponse({ success: false, error: 'Unknown message type' })
       }
