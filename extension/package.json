@@ -1,0 +1,17 @@
+{
+  "name": "scogo-extension",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/build.js --watch"
+  },
+  "dependencies": {
+    "livekit-client": "^1.15.7"
+  },
+  "devDependencies": {
+    "dotenv": "^16.3.1",
+    "esbuild": "^0.19.8",
+    "pngjs": "^7.0.0"
+  }
+}

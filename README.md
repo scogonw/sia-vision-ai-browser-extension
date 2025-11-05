@@ -1,89 +1,123 @@
-> [!WARNING]
-> This example is outdated. While it still works great, we've now added built-in vision support to a whole set of new [frontend starter apps](https://docs.livekit.io/agents/start/frontend/#starter-apps) for every platform and [live video](https://docs.livekit.io/agents/build/vision/#video) is easy to add to the [Python agent starter](https://github.com/livekit-example/agent-starter-python) repository for the latest example.
+# Scogo AI IT Support Assistant
 
-# LiveKit Vision Demo
+This repository contains the full-stack reference implementation for the Scogo AI IT Support Assistant Chrome extension described in the product requirements document. It includes:
 
-This LiveKit sample app shows a voice AI assistant with realtime audio and video input.
+- A Manifest V3 Chrome extension that authenticates with Google, starts LiveKit voice + screen sharing sessions, and captures feedback.
+- A Node.js backend that validates user tokens, issues LiveKit access tokens, tracks session metadata, and exposes configuration to the extension.
+- A Python LiveKit agent worker that connects to the same room, streams audio/video to Gemini, and responds with contextual IT support guidance.
 
-It contains a native iOS frontend, built on LiveKit's [Swift SDK](https://github.com/livekit/client-sdk-swift), and a backend agent, built on LiveKit's [Python Agents framework](https://github.com/livekit/agents) and the [Gemini Live API](https://ai.google.dev/gemini-api/docs/live).
+## Architecture Overview
 
-<img src="screenshot.jpg" height="512">
+```
+Chrome Extension ──▶ Backend API ──▶ LiveKit Cloud ◀── Agent Worker
+        │                │                │
+        └────── Google OAuth ─────────────┘
+```
 
-# Features
+1. The extension authenticates the user with Google and calls the backend for configuration.
+2. When the user clicks **Get Support**, the extension requests a LiveKit token from the backend and publishes microphone + screen tracks to the room.
+3. The Python agent worker joins the same room, streams frames and audio to Gemini Live, and delivers voice responses back to the user.
+4. Session metadata and feedback are persisted via backend API endpoints for analytics.
 
-### Real-time Video & Audio
-- 📱 Front and back camera support
-- 🎙️ Natural voice conversations
-- 🖥️ Live screen sharing
+## Prerequisites
 
-### Background Support
-- 🔄 Continues running while using other apps
-- 💬 Voice conversations in background
-- 👀 Screen monitoring while multitasking
+| Component | Requirement |
+|-----------|-------------|
+| Chrome Extension | Google Cloud OAuth 2.0 client (Desktop app) |
+| Backend | Node.js 18+, npm |
+| Agent | Python 3.11+, LiveKit Cloud project, Gemini API key |
 
-The assistant can observe and interact with you seamlessly, whether you're actively using the app or working on other tasks.
+## Environment Variables
 
-# Agent Architecture
+Create a `.env` file in the repository root (see `.env.example`) and fill in the values for your environment.
 
-The backend agent is built on the [MultimodalAgent](https://docs.livekit.io/agents/voice-agent/multimodal/) class hooked up to the Gemini Live API.
+```env
+NODE_ENV=development
+PORT=4000
+BACKEND_BASE_URL=http://localhost:4000
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+GOOGLE_OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com
+LIVEKIT_API_KEY=lkc_xxx
+LIVEKIT_API_SECRET=lkss_xxx
+LIVEKIT_HOST=wss://your-project.livekit.cloud
+GEMINI_API_KEY=your-gemini-live-key
+```
 
-Video frames are sampled at 1 frame per second while the user speaks, and 0.3 frames per second otherwise. Images are sent as JPEG at 1024x1024 max size.  For more information on video input, see the LiveKit Agents [vision docs](https://docs.livekit.io/agents/voice/vision#video).
+The extension build pipeline reads the same `.env` file so you only have to maintain one source of truth.
 
-# Running Locally
+## Backend Setup
 
-This project is meant to be a starting point for your own project, and is easy to run locally.
+```bash
+cd backend
+npm install
+npm run start
+```
 
-## Running the Agent
+The backend exposes:
 
-### Prerequisites
+- `GET /health` – service heartbeat
+- `GET /api/config` – extension runtime configuration
+- `POST /api/token/livekit` – issues LiveKit room tokens (Google authentication required)
+- `POST /api/session/log` – stores per-session analytics events
+- `POST /api/feedback` – persists feedback submissions
 
-- [LiveKit Cloud](https://cloud.livekit.io) project
-- [Google Gemini API Key](https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com)
-- Python 3
+Use `ALLOW_DEV_TOKENS=true` during local development to bypass Google OAuth by sending the header `Authorization: Bearer dev-token`.
 
-### Setup
+## Extension Setup
 
-Put your LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET, GOOGLE_API_KEY into a file called `agent/.env`.
+The extension is bundled with esbuild. Build artifacts are located in `extension/dist` and can be loaded as an unpacked extension in Chrome.
 
-Then install dependencies
+```bash
+cd extension
+npm install
+npm run build
+```
+
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select `extension/dist`.
+4. Click the Scogo AI Support icon, sign in with Google, then start a support session.
+
+> The extension relies on the backend for all secrets and LiveKit credentials; ensure the backend is running before attempting to start a session.
+
+## Agent Worker Setup
 
 ```bash
 cd agent
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python main.py
 ```
 
-Finally, run the agent with:
+Environment variables consumed by the worker:
 
-```bash
-python main.py dev
-```
+- `LIVEKIT_HOST`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`
+- `GEMINI_API_KEY` (Gemini Live token)
+- `KNOWLEDGE_BASE_PATH` (optional path to markdown knowledge base)
 
-## Using the Agents Playground
+The worker auto-loads markdown files from `agent/knowledge_base/` and appends the content to the Gemini prompt. Update this folder with organization-specific playbooks.
 
-This project is fully compatible with LiveKit's [Agents Playground](https://agents-playground.livekit.io), so you can easily test the agent in your browser without having to build the iOS app. Just go to the playground, pick your cloud project, and connect! There is a checkbox to "Enable camera" if you wish to share your camera feed with the agent.
+## Local Development Workflow
 
-## Running the iOS App
+Use the [Local Deployment & Testing Guide](docs/local-deployment.md) for a step-by-step walkthrough. At a high level:
 
-This project includes a sample iOS app that you can build yourself.
+1. Populate `.env` with LiveKit, Gemini, and Google OAuth credentials.
+2. Start the backend (`npm run start` in `backend/`).
+3. Run the agent worker (`python agent/main.py`).
+4. Build and load the Chrome extension (`npm run build` in `extension/`).
+5. Open the extension popup, authenticate, and start a session.
 
-### Prerequisites
+## Testing
 
-- Xcode 16
-- Device with iOS 17+ (simulator is not supported)
-- [LiveKit Cloud](https://cloud.livekit.io) project
-- A [Sandbox](https://docs.livekit.io/cloud/sandbox/) [token server](https://cloud.livekit.io/projects/p_/sandbox/templates/token-server)
+- Backend linting: `cd backend && npm run lint`
+- Extension build validation: `cd extension && npm run build`
+- Agent connectivity: run `python agent/main.py` and ensure it connects to your LiveKit project without errors.
 
-### Setup
+## Deployment Notes
 
-1. Open `swift-frontend/VisionDemo/VisionDemo.xcodeproj` in Xcode.
-2. Create a file `swift-frontend/VisionDemo/Resources/Secrets.xcconfig` with `LK_SANDBOX_TOKEN_SERVER_ID=` and your token server's unique ID.
-3. Edit the bundle identifier for the `VisionDemo` target to a suitable values for your own use.
-4. Edit the bundle identifier for the `BroadcastExtension` to `<your-bundle-identifier>.broadcast`.
-4. Create a new App Group called `group.<your-bundle-identifier>` and select it in the "Signing & Capabilities" section of the `VisionDemo` target.
-7. Build and run the app on your device.
+- Deploy the backend to your preferred Node.js hosting platform (Fly.io, Render, Cloud Run) using the same environment variables.
+- Package and publish the extension to the Chrome Web Store using the `extension/dist` folder.
+- Containerize the agent worker and deploy it to a managed compute platform (Cloud Run, ECS, Kubernetes). Configure LiveKit webhooks to scale workers as new rooms are created.
 
-# Self-Hosted Options
-
-This project is built with the LiveKit Cloud [Sandbox token server](https://cloud.livekit.io/projects/p_/sandbox/templates/token-server) to make token generation easy. If you want to self-host or run a local LiveKit instance, you'll need to modify `swift-frontend/VisionDemo/Services/TokenService.swift` file to fetch your token from your own server and remove the `noise-cancellation` plugin from the agent ([enhanced noise cancellation](https://docs.livekit.io/cloud/noise-cancellation/) is a LiveKit Cloud feature).
+Refer to `docs/scogo-ai-it-support-assistant-prd.md` for detailed product and testing requirements.
