@@ -8,13 +8,10 @@ from livekit.agents import (
     Agent,
     AgentSession,
     JobContext,
-    RoomInputOptions,
-    TurnDetection,
     WorkerOptions,
     cli,
 )
-from livekit.agents.llm import ChatContext
-from livekit.plugins import google, noise_cancellation
+from livekit.plugins import google
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("scogo.it.support.agent")
@@ -48,68 +45,50 @@ def load_knowledge_base() -> str:
 class ITSupportAgent(Agent):
     def __init__(self) -> None:
         knowledge_base = load_knowledge_base()
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
-        if not gemini_api_key:
-            raise RuntimeError("GEMINI_API_KEY is required to run the agent")
-
-        google.configure(api_key=gemini_api_key)
 
         instructions = DEFAULT_INSTRUCTIONS
         if knowledge_base:
             instructions += "\nUse the following IT knowledge base when answering questions:\n" + knowledge_base
 
-        llm = google.beta.realtime.RealtimeModel(
-            model=os.getenv("GEMINI_REALTIME_MODEL", "models/gemini-1.5-pro-latest"),
-            voice=os.getenv("GEMINI_VOICE", "Puck"),
-            temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.6")),
-            instructions=instructions,
-        )
-
-        super().__init__(instructions=instructions, llm=llm)
-        self.chat_ctx = ChatContext()
-
-    async def on_enter(self) -> None:
-        logger.info("Agent entering session")
-        self.chat_ctx.add_message(
-            role="system",
-            content="Scogo AI Support Assistant ready to help."
-        )
-        self.session.generate_reply(
-            instructions="Introduce yourself and ask the user to describe their IT issue."
-        )
-
-    async def on_user_message(self, message, participant):
-        logger.info("User message received from %s", participant.identity)
-        await super().on_user_message(message, participant)
-
-    async def on_agent_transcript(self, transcript):
-        logger.debug("Agent transcript: %s", transcript)
+        super().__init__(instructions=instructions)
 
 
 async def entrypoint(ctx: JobContext):
     logger.info("Agent worker received job for room %s", ctx.room.name)
     await ctx.connect()
 
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    if not gemini_api_key:
+        raise RuntimeError("GEMINI_API_KEY is required to run the agent")
+
+    # Configure Google plugin
+    os.environ["GOOGLE_API_KEY"] = gemini_api_key
+
     agent = ITSupportAgent()
 
     session = AgentSession(
-        turn_detection=TurnDetection.VOICE,
+        llm=google.realtime.RealtimeModel(
+            model=os.getenv("GEMINI_REALTIME_MODEL", "gemini-2.0-flash-exp"),
+            voice=os.getenv("GEMINI_VOICE", "Puck"),
+            temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.6")),
+        ),
     )
+
     await session.start(
         agent=agent,
         room=ctx.room,
-        room_input_options=RoomInputOptions(
-            video_enabled=True,
-            audio_enabled=True,
-            noise_cancellation=noise_cancellation.BVC(),
-            vad_threshold=float(os.getenv("VAD_THRESHOLD", "0.6")),
-        ),
+    )
+
+    # Generate initial greeting
+    await session.generate_reply(
+        instructions="Introduce yourself as Scogo AI Support Assistant and ask the user to describe their IT issue."
     )
 
     await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
+    # Verify required environment variables are set
     livekit_url = os.getenv("LIVEKIT_HOST")
     livekit_api_key = os.getenv("LIVEKIT_API_KEY")
     livekit_api_secret = os.getenv("LIVEKIT_API_SECRET")
@@ -117,11 +96,14 @@ if __name__ == "__main__":
     if not all([livekit_url, livekit_api_key, livekit_api_secret]):
         raise RuntimeError("LIVEKIT_HOST, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET must be set")
 
+    # Set environment variables for LiveKit CLI
+    os.environ["LIVEKIT_URL"] = livekit_url
+    os.environ["LIVEKIT_API_KEY"] = livekit_api_key
+    os.environ["LIVEKIT_API_SECRET"] = livekit_api_secret
+
+    # Run the agent worker
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
-            livekit_url=livekit_url,
-            api_key=livekit_api_key,
-            api_secret=livekit_api_secret,
         )
     )
