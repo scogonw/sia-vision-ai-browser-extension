@@ -5,6 +5,7 @@ const loginButton = document.getElementById('login-button')
 const startButton = document.getElementById('start-button')
 const endButton = document.getElementById('end-button')
 const muteButton = document.getElementById('mute-button')
+const shareScreenButton = document.getElementById('share-screen-button')
 const feedbackButton = document.getElementById('feedback-button')
 const feedbackSection = document.getElementById('feedback-section')
 const ratingStars = document.getElementById('rating-stars')
@@ -98,6 +99,7 @@ const updateUiState = (state) => {
     case 'connected':
       startButton.classList.add('hidden')
       activeControls.classList.remove('hidden')
+      shareScreenButton.classList.remove('hidden')
       feedbackButton.classList.remove('hidden')
       statusText.textContent = 'Session active'
       updateStatusDot('listening')
@@ -108,6 +110,9 @@ const updateUiState = (state) => {
       startButton.classList.remove('hidden')
       startButton.disabled = false
       activeControls.classList.add('hidden')
+      shareScreenButton.classList.add('hidden')
+      shareScreenButton.textContent = 'Share Your Screen'
+      shareScreenButton.disabled = false
       feedbackButton.classList.add('hidden')
       feedbackSection.classList.add('hidden')
       statusText.textContent = 'Ready to help'
@@ -270,6 +275,23 @@ const toggleMute = async () => {
   }
 }
 
+const startScreenShare = async () => {
+  clearAlerts()
+  try {
+    console.log('[Popup] Starting screen share...')
+    const response = await sendMessage({ type: 'START_SCREEN_SHARE' })
+    if (!response?.success) {
+      showError(response?.error || 'Could not start screen sharing')
+      return
+    }
+    showSuccess('Screen sharing started')
+    shareScreenButton.textContent = 'Screen Sharing Active'
+    shareScreenButton.disabled = true
+  } catch (error) {
+    showError('Screen sharing error: ' + error.message)
+  }
+}
+
 // Feedback System
 const openFeedback = () => {
   feedbackSection.classList.remove('hidden')
@@ -347,6 +369,7 @@ loginButton.addEventListener('click', authenticate)
 startButton.addEventListener('click', startSession)
 endButton.addEventListener('click', endSession)
 muteButton.addEventListener('click', toggleMute)
+shareScreenButton.addEventListener('click', startScreenShare)
 feedbackButton.addEventListener('click', openFeedback)
 submitFeedbackBtn.addEventListener('click', submitFeedbackForm)
 cancelFeedbackBtn.addEventListener('click', closeFeedback)

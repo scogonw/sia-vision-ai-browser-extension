@@ -15,6 +15,12 @@ export class SessionManager {
   async startSession () {
     ensureConfig()
 
+    // Ensure any previous session is completely cleaned up before starting a new one
+    if (this.room || this.audioTrack || this.screenTrack) {
+      console.log('[SessionManager] Cleaning up previous session before starting new one')
+      await this.endSession()
+    }
+
     try {
       // Permission should already be granted in the side panel before this is called
       // Step 1: Get LiveKit token from backend
@@ -47,13 +53,8 @@ export class SessionManager {
       // Step 3: Create and publish microphone track (permission already granted in side panel)
       await this.publishMicrophone()
 
-      // Step 4: Try to publish screen share, but don't fail if user denies permission
-      try {
-        await this.publishScreenShare()
-      } catch (error) {
-        console.warn('[SessionManager] Screen share permission denied or unavailable:', error.message)
-        // Continue without screen share - audio-only session is still valid
-      }
+      // Note: Screen sharing is now optional and controlled by user via "Share Screen" button
+      // No automatic screen sharing prompt
 
       this.state = 'connected'
       return { sessionId, roomName }
