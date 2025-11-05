@@ -28,6 +28,7 @@ const outdir = join(__dirname, '../dist')
 mkdirSync(outdir, { recursive: true })
 mkdirSync(join(outdir, 'popup'), { recursive: true })
 mkdirSync(join(outdir, 'offscreen'), { recursive: true })
+mkdirSync(join(outdir, 'request-permission'), { recursive: true })
 
 ensureIcons()
 
@@ -92,6 +93,8 @@ writeFileSync(join(outdir, 'manifest.json'), JSON.stringify(manifest, null, 2))
 cpSync(join(__dirname, '../src/popup/popup.html'), join(outdir, 'popup/popup.html'))
 cpSync(join(__dirname, '../src/popup/popup.css'), join(outdir, 'popup/popup.css'))
 cpSync(join(__dirname, '../src/offscreen/offscreen.html'), join(outdir, 'offscreen/offscreen.html'))
+cpSync(join(__dirname, '../src/request-permission/request-permission.html'), join(outdir, 'request-permission/request-permission.html'))
+cpSync(join(__dirname, '../src/request-permission/request-permission.js'), join(outdir, 'request-permission/request-permission.js'))
 
 // Copy public assets
 try {

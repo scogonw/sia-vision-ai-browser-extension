@@ -150,32 +150,57 @@ const checkAuth = async () => {
   }
 }
 
-// Request microphone permission in the side panel
+// Check and request microphone permission
 const requestMicrophonePermission = async () => {
   try {
-    console.log('[Popup] Requesting microphone permission in side panel...')
-    // Request microphone permission in the visible side panel context
-    // This will trigger the browser's permission prompt
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    })
-    console.log('[Popup] Microphone permission granted in side panel')
-    // Stop the stream immediately - we just needed to request permission
-    stream.getTracks().forEach(track => track.stop())
-    return true
-  } catch (error) {
-    console.error('[Popup] Microphone permission denied:', error)
-    if (error.name === 'NotAllowedError') {
-      throw new Error('Microphone access denied. Please allow microphone access to start the session.')
-    } else if (error.name === 'NotFoundError') {
-      throw new Error('No microphone found. Please connect a microphone and try again.')
-    } else {
-      throw new Error(`Failed to access microphone: ${error.message}`)
+    console.log('[Popup] Checking microphone permission...')
+
+    // Check current permission state
+    const permission = await navigator.permissions.query({ name: 'microphone' })
+    console.log('[Popup] Microphone permission state:', permission.state)
+
+    if (permission.state === 'granted') {
+      console.log('[Popup] Microphone permission already granted')
+      return true
     }
+
+    if (permission.state === 'denied') {
+      throw new Error('Microphone access was previously denied. Please enable it in your browser settings.')
+    }
+
+    // Permission is in 'prompt' state - need to request it in a new tab
+    // Side panels cannot show permission prompts, so we open a new tab
+    console.log('[Popup] Opening permission request tab...')
+
+    return new Promise((resolve, reject) => {
+      chrome.tabs.create({ url: chrome.runtime.getURL('request-permission/request-permission.html') }, (tab) => {
+        const tabId = tab.id
+
+        // Listen for when the tab is closed
+        const onRemoved = (closedTabId) => {
+          if (closedTabId === tabId) {
+            chrome.tabs.onRemoved.removeListener(onRemoved)
+
+            // Check permission again after tab closes
+            navigator.permissions.query({ name: 'microphone' })
+              .then(perm => {
+                if (perm.state === 'granted') {
+                  console.log('[Popup] Microphone permission granted in new tab')
+                  resolve(true)
+                } else {
+                  reject(new Error('Microphone access denied. Please allow microphone access to start the session.'))
+                }
+              })
+              .catch(reject)
+          }
+        }
+
+        chrome.tabs.onRemoved.addListener(onRemoved)
+      })
+    })
+  } catch (error) {
+    console.error('[Popup] Microphone permission error:', error)
+    throw error
   }
 }
 
