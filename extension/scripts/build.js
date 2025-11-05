@@ -8,9 +8,18 @@ import { ensureIcons } from './generate-icons.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const rootEnv = dotenv.config({ path: join(__dirname, '../../.env') })
+// Try loading .env from multiple locations (for both local and Docker builds)
+let rootEnv = dotenv.config({ path: join(__dirname, '../../.env') })
 if (rootEnv.error) {
-  dotenv.config({ path: join(__dirname, '../../.env.example') })
+  // Try current working directory (Docker mounts .env here)
+  rootEnv = dotenv.config({ path: join(process.cwd(), '.env') })
+}
+if (rootEnv.error) {
+  // Fall back to example file
+  rootEnv = dotenv.config({ path: join(__dirname, '../../.env.example') })
+}
+if (rootEnv.error) {
+  console.warn('⚠️  No .env file found - using environment variables from system')
 }
 
 const env = process.env
