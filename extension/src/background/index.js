@@ -1,8 +1,49 @@
-import { SessionManager } from '../lib/session-manager.js'
 import { AuthHandler } from '../lib/auth-handler.js'
 
-const sessionManager = new SessionManager()
 const authHandler = new AuthHandler()
+
+// Offscreen document management
+let offscreenDocumentCreated = false
+
+async function ensureOffscreenDocument() {
+  if (offscreenDocumentCreated) {
+    return
+  }
+
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT']
+  })
+
+  if (existingContexts.length > 0) {
+    offscreenDocumentCreated = true
+    return
+  }
+
+  await chrome.offscreen.createDocument({
+    url: 'offscreen/offscreen.html',
+    reasons: ['USER_MEDIA'],
+    justification: 'LiveKit requires access to WebRTC APIs for real-time communication'
+  })
+
+  offscreenDocumentCreated = true
+  console.log('[Background] Offscreen document created')
+}
+
+// Send message to offscreen document
+async function sendToOffscreen(message) {
+  await ensureOffscreenDocument()
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message))
+      } else if (response && !response.success) {
+        reject(new Error(response.error || 'Unknown error'))
+      } else {
+        resolve(response)
+      }
+    })
+  })
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   ;(async () => {
@@ -19,18 +60,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break
         }
         case 'START_SESSION': {
-          const sessionInfo = await sessionManager.startSession()
-          sendResponse({ success: true, sessionInfo })
+          const response = await sendToOffscreen({ type: 'START_SESSION' })
+          sendResponse(response)
           break
         }
         case 'END_SESSION': {
-          await sessionManager.endSession()
-          sendResponse({ success: true })
+          const response = await sendToOffscreen({ type: 'END_SESSION' })
+          sendResponse(response)
           break
         }
         case 'MUTE_MICROPHONE': {
-          sessionManager.muteMicrophone(message.muted)
-          sendResponse({ success: true })
+          const response = await sendToOffscreen({
+            type: 'MUTE_MICROPHONE',
+            muted: message.muted
+          })
+          sendResponse(response)
           break
         }
         case 'LOG_EVENT': {

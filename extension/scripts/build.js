@@ -27,6 +27,7 @@ const env = process.env
 const outdir = join(__dirname, '../dist')
 mkdirSync(outdir, { recursive: true })
 mkdirSync(join(outdir, 'popup'), { recursive: true })
+mkdirSync(join(outdir, 'offscreen'), { recursive: true })
 
 ensureIcons()
 
@@ -46,7 +47,8 @@ for (const key of exposedEnvKeys) {
 await build({
   entryPoints: {
     'background': join(__dirname, '../src/background/index.js'),
-    'popup/popup': join(__dirname, '../src/popup/popup.js')
+    'popup/popup': join(__dirname, '../src/popup/popup.js'),
+    'offscreen/offscreen': join(__dirname, '../src/offscreen/offscreen.js')
   },
   bundle: true,
   format: 'esm',
@@ -89,6 +91,7 @@ if (manifest.host_permissions && env.BACKEND_BASE_URL) {
 writeFileSync(join(outdir, 'manifest.json'), JSON.stringify(manifest, null, 2))
 cpSync(join(__dirname, '../src/popup/popup.html'), join(outdir, 'popup/popup.html'))
 cpSync(join(__dirname, '../src/popup/popup.css'), join(outdir, 'popup/popup.css'))
+cpSync(join(__dirname, '../src/offscreen/offscreen.html'), join(outdir, 'offscreen/offscreen.html'))
 
 // Copy public assets
 try {
