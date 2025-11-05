@@ -44,7 +44,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     } catch (error) {
       console.error('[Offscreen] Error handling message:', error)
-      sendResponse({ success: false, error: error.message })
+      // Serialize error properly for DOMExceptions and other error types
+      const errorMessage = error.message || error.toString() || 'Unknown error occurred'
+      sendResponse({ success: false, error: errorMessage })
     }
   })()
 

@@ -14,56 +14,91 @@ export class SessionManager {
 
   async startSession () {
     ensureConfig()
-    const token = await this.auth.getToken()
-    const response = await fetch(`${process.env.BACKEND_BASE_URL}/api/token/livekit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ timestamp: Date.now() })
-    })
 
-    if (!response.ok) {
-      throw new Error('Failed to create LiveKit token')
-    }
-
-    const { token: livekitToken, host, sessionId, roomName } = await response.json()
-
-    this.room = new Room({
-      adaptiveStream: true,
-      dynacast: true,
-      disconnectOnPageLeave: false
-    })
-
-    this.registerEvents(sessionId)
-    await this.room.connect(host, livekitToken)
-
-    await this.publishMicrophone()
-
-    // Try to publish screen share, but don't fail if user denies permission
     try {
-      await this.publishScreenShare()
-    } catch (error) {
-      console.warn('[SessionManager] Screen share permission denied or unavailable:', error.message)
-      // Continue without screen share - audio-only session is still valid
-    }
+      // Permission should already be granted in the side panel before this is called
+      // Step 1: Get LiveKit token from backend
+      const token = await this.auth.getToken()
+      const response = await fetch(`${process.env.BACKEND_BASE_URL}/api/token/livekit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ timestamp: Date.now() })
+      })
 
-    this.state = 'connected'
-    return { sessionId, roomName }
+      if (!response.ok) {
+        throw new Error('Failed to create LiveKit token')
+      }
+
+      const { token: livekitToken, host, sessionId, roomName } = await response.json()
+
+      // Step 2: Create and connect to LiveKit room
+      this.room = new Room({
+        adaptiveStream: true,
+        dynacast: true,
+        disconnectOnPageLeave: false
+      })
+
+      this.registerEvents(sessionId)
+      await this.room.connect(host, livekitToken)
+
+      // Step 3: Create and publish microphone track (permission already granted in side panel)
+      await this.publishMicrophone()
+
+      // Step 4: Try to publish screen share, but don't fail if user denies permission
+      try {
+        await this.publishScreenShare()
+      } catch (error) {
+        console.warn('[SessionManager] Screen share permission denied or unavailable:', error.message)
+        // Continue without screen share - audio-only session is still valid
+      }
+
+      this.state = 'connected'
+      return { sessionId, roomName }
+    } catch (error) {
+      // If anything fails, clean up the audio track and room
+      console.error('[SessionManager] Session start failed:', error)
+      if (this.audioTrack) {
+        this.audioTrack.stop()
+        this.audioTrack = null
+      }
+      if (this.room) {
+        await this.room.disconnect()
+        this.room = null
+      }
+      this.state = 'idle'
+      throw error
+    }
   }
 
   async publishMicrophone () {
-    this.audioTrack = await createLocalAudioTrack({
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true
-    })
+    // Permission should already be granted in the side panel
+    // Now we can create the audio track in the offscreen document
+    try {
+      console.log('[SessionManager] Creating audio track (permission already granted)...')
+      this.audioTrack = await createLocalAudioTrack({
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      })
 
-    await this.room.localParticipant.publishTrack(this.audioTrack, {
-      name: 'microphone',
-      source: Track.Source.Microphone
-    })
+      await this.room.localParticipant.publishTrack(this.audioTrack, {
+        name: 'microphone',
+        source: Track.Source.Microphone
+      })
+      console.log('[SessionManager] Microphone track published to room')
+    } catch (error) {
+      console.error('[SessionManager] Failed to publish microphone track:', error)
+      if (error.name === 'NotAllowedError') {
+        throw new Error('Microphone access denied. Please allow microphone access in the side panel first.')
+      } else if (error.name === 'NotFoundError') {
+        throw new Error('No microphone found. Please connect a microphone and try again.')
+      } else {
+        throw new Error(`Failed to publish microphone: ${error.message}`)
+      }
+    }
   }
 
   async publishScreenShare () {

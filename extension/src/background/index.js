@@ -2,6 +2,11 @@ import { AuthHandler } from '../lib/auth-handler.js'
 
 const authHandler = new AuthHandler()
 
+// Open side panel when extension icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel.open({ windowId: tab.windowId })
+})
+
 // Offscreen document management
 let offscreenDocumentCreated = false
 

@@ -7,39 +7,120 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <main class="container">
-      <header>
-        <img src="../icons/icon48.png" alt="Scogo" class="logo" />
-        <div>
-          <h1>Scogo AI Support</h1>
-          <p id="status-text">Authenticate to begin.</p>
+    <div class="popup-container">
+      <!-- Background gradient effect -->
+      <div class="background-gradient"></div>
+
+      <!-- Main content -->
+      <main class="content">
+        <!-- Brand section -->
+        <div class="brand-section">
+          <div class="logo-wrapper">
+            <img src="../icons/icon48.png" alt="Scogo AI" class="logo" />
+            <div class="logo-shine"></div>
+          </div>
+          <h1 class="brand-title">
+            <span class="gradient-text">Scogo AI</span>
+          </h1>
+          <p class="brand-subtitle">IT Support Assistant</p>
         </div>
-      </header>
-      <section id="auth-section" class="section">
-        <button id="login-button" class="primary">Sign in with Google</button>
-      </section>
-      <section id="session-section" class="section hidden">
-        <button id="start-button" class="primary">Get Support</button>
-        <button id="end-button" class="secondary hidden">End Session</button>
-        <div class="controls hidden" id="controls">
-          <button id="mute-button" class="secondary">Mute</button>
-          <button id="feedback-button" class="secondary">Send Feedback</button>
+
+        <!-- Status indicator -->
+        <div class="status-section">
+          <div class="status-indicator">
+            <div class="status-dot" id="status-dot"></div>
+            <span class="status-text" id="status-text">Ready to help</span>
+          </div>
         </div>
-      </section>
-      <section id="feedback-section" class="section hidden">
-        <label for="rating">Rate your session</label>
-        <select id="rating">
-          <option value="5">5 - Excellent</option>
-          <option value="4">4 - Good</option>
-          <option value="3">3 - Average</option>
-          <option value="2">2 - Poor</option>
-          <option value="1">1 - Very Poor</option>
-        </select>
-        <textarea id="comment" placeholder="Additional comments"></textarea>
-        <button id="submit-feedback" class="primary">Submit</button>
-      </section>
-      <div id="error" class="error hidden"></div>
-    </main>
+
+        <!-- Auth section -->
+        <section id="auth-section" class="action-section">
+          <button id="login-button" class="btn btn-primary btn-large">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/>
+            </svg>
+            Sign in with Google
+          </button>
+          <p class="helper-text">Secure authentication powered by Google</p>
+        </section>
+
+        <!-- Session section -->
+        <section id="session-section" class="action-section hidden">
+          <button id="start-button" class="btn btn-success btn-large btn-pulse">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
+            </svg>
+            Get Support
+          </button>
+
+          <!-- Active call controls -->
+          <div id="active-controls" class="active-controls hidden">
+            <div class="call-info">
+              <div class="call-duration">
+                <div class="pulse-dot"></div>
+                <span id="call-timer">00:00</span>
+              </div>
+            </div>
+
+            <div class="control-buttons">
+              <button id="mute-button" class="btn btn-control" title="Mute microphone">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
+                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
+                </svg>
+              </button>
+
+              <button id="end-button" class="btn btn-danger" title="End session">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor" transform="rotate(135 12 12)"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button id="feedback-button" class="btn btn-secondary btn-small hidden">
+            Send Feedback
+          </button>
+        </section>
+
+        <!-- Feedback section -->
+        <section id="feedback-section" class="feedback-section hidden">
+          <h3 class="section-title">How was your session?</h3>
+
+          <div class="rating-stars" id="rating-stars">
+            <button class="star-btn" data-rating="1">★</button>
+            <button class="star-btn" data-rating="2">★</button>
+            <button class="star-btn" data-rating="3">★</button>
+            <button class="star-btn" data-rating="4">★</button>
+            <button class="star-btn" data-rating="5">★</button>
+          </div>
+
+          <textarea id="comment" class="feedback-input" placeholder="Tell us about your experience... (optional)" rows="3"></textarea>
+
+          <div class="feedback-actions">
+            <button id="cancel-feedback" class="btn btn-secondary btn-small">Cancel</button>
+            <button id="submit-feedback" class="btn btn-primary btn-small">Submit</button>
+          </div>
+        </section>
+
+        <!-- Error banner -->
+        <div id="error" class="alert alert-error hidden">
+          <svg class="alert-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+          </svg>
+          <span id="error-text"></span>
+        </div>
+
+        <!-- Success banner -->
+        <div id="success" class="alert alert-success hidden">
+          <svg class="alert-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+          </svg>
+          <span id="success-text"></span>
+        </div>
+      </main>
+    </div>
     <script type="module" src="popup.js"></script>
   </body>
 </html>
