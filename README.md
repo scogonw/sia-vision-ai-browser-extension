@@ -98,14 +98,33 @@ Environment variables consumed by the worker:
 
 The worker auto-loads markdown files from `agent/knowledge_base/` and appends the content to the Gemini prompt. Update this folder with organization-specific playbooks.
 
+## Containerized Local Stack
+
+You can spin up the backend and agent with Docker Compose once `.env` is configured:
+
+```bash
+docker compose up --build backend agent
+```
+
+- The backend listens on `http://localhost:${PORT}` (default `4000`).
+- The agent connects to LiveKit using the same credentials from `.env` and streams the bundled knowledge base.
+
+To rebuild the Chrome extension inside a container, run:
+
+```bash
+docker compose run --rm extension-builder
+```
+
+This command installs dependencies, performs a clean build, and writes the output to `extension/dist`, ready to load in Chrome.
+
 ## Local Development Workflow
 
 Use the [Local Deployment & Testing Guide](docs/local-deployment.md) for a step-by-step walkthrough. At a high level:
 
 1. Populate `.env` with LiveKit, Gemini, and Google OAuth credentials.
-2. Start the backend (`npm run start` in `backend/`).
-3. Run the agent worker (`python agent/main.py`).
-4. Build and load the Chrome extension (`npm run build` in `extension/`).
+2. Start the backend (`npm run start` in `backend/` or `docker compose up backend`).
+3. Run the agent worker (`python agent/main.py` or `docker compose up agent`).
+4. Build and load the Chrome extension (`npm run build` in `extension/` or `docker compose run --rm extension-builder`).
 5. Open the extension popup, authenticate, and start a session.
 
 ## Testing

@@ -8,12 +8,13 @@ This guide walks you through the exact steps required to run the Scogo AI IT Sup
 | --- | --- |
 | Operating System | Windows, macOS, or Linux capable of running Chrome |
 | Browser | Google Chrome 110+ (Developer Mode enabled for extensions) |
-| Node.js | v18.x or v20.x with npm 9+ |
-| Python | 3.11+ with `venv` module |
+| Node.js | v18.x or v20.x with npm 9+ *(skip if using Docker Compose)* |
+| Python | 3.11+ with `venv` module *(skip if using Docker Compose)* |
 | LiveKit | Cloud project with API key/secret and accessible `wss://` URL |
 | Google OAuth | OAuth 2.0 client (Desktop type) with authorized redirect URIs |
 | Gemini | Google AI Studio API key with Gemini Live enabled |
 | Network | Ability to reach `oauth2.googleapis.com`, LiveKit Cloud, and Gemini endpoints |
+| Docker (optional) | Docker Engine / Docker Desktop 4.21+ for Compose-based workflow |
 
 > **Tip:** Collect the LiveKit host URL, Google OAuth client ID, and Gemini API key before you begin. Keep them in a password manager—they will be reused by every service.
 
@@ -32,7 +33,30 @@ This guide walks you through the exact steps required to run the Scogo AI IT Sup
 
 The `.env` file is consumed by the backend, extension build pipeline, and agent worker so you only edit the values once.
 
-## 3. Start the Backend API
+## 3. Run with Docker Compose (Recommended)
+
+If you prefer not to install Node.js or Python locally, you can run the backend and agent in containers. From the repo root:
+
+```bash
+docker compose up --build backend agent
+```
+
+The first build downloads dependencies and produces two containers:
+
+- **backend** – available at `http://localhost:${PORT}` and automatically reuses the values from `.env`.
+- **agent** – connects to LiveKit/Gemini using the same `.env` secrets and streams the markdown knowledge base mounted from `agent/knowledge_base`.
+
+When you need a fresh Chrome extension bundle, run:
+
+```bash
+docker compose run --rm extension-builder
+```
+
+This creates/refreshes `extension/dist` so you can load the unpacked extension in Chrome.
+
+You can skip to §6 once the containers are healthy.
+
+## 4. Start the Backend API Manually (Alternative)
 
 ```bash
 cd backend
@@ -47,7 +71,7 @@ Verification checklist:
 
 Leave this terminal running; the extension and agent rely on it.
 
-## 4. Launch the LiveKit Agent Worker
+## 5. Launch the LiveKit Agent Worker
 
 ```bash
 cd agent
@@ -62,7 +86,7 @@ Verification checklist:
 - No exception about missing `GEMINI_API_KEY`—double check `.env` if you see one.
 - The process continues running, waiting for rooms to be assigned.
 
-## 5. Build and Load the Chrome Extension
+## 6. Build and Load the Chrome Extension
 
 ```bash
 cd extension
@@ -76,7 +100,7 @@ Then load the unpacked extension:
 3. Click **Load unpacked** and select the generated `extension/dist` folder.
 4. Pin the “Scogo AI IT Support Assistant” icon so you can open the popup easily.
 
-## 6. Authenticate and Start a Test Session
+## 7. Authenticate and Start a Test Session
 
 1. Ensure the backend and agent terminals are still running.
 2. Click the extension icon → **Sign in with Google**.
@@ -94,7 +118,7 @@ If you do not have Google OAuth ready, you can still exercise the backend APIs:
 2. Use `Authorization: Bearer dev-token` on HTTP requests when testing the backend manually.
 3. For the extension, you still need Google OAuth to obtain a real Chrome token—Chrome does not allow bypassing the consent flow.
 
-## 7. Smoke Tests Before Stopping
+## 8. Smoke Tests Before Stopping
 
 Run the quick checks below to confirm the repo is in a healthy state:
 
@@ -114,7 +138,7 @@ python -m compileall .
 
 All commands should exit with status code `0`. Investigate any errors before continuing.
 
-## 8. Troubleshooting Tips
+## 9. Troubleshooting Tips
 
 | Symptom | Likely Cause | Fix |
 | --- | --- | --- |
