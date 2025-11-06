@@ -41,7 +41,7 @@ Conversation policy:
 5. If you cannot see the screen clearly or the screen share is not active, let the user know and ask them to share their screen.
 6. Provide step-by-step instructions, pause after each step for confirmation, and keep a professional, friendly tone.
 7. Summarize progress frequently and offer to escalate to a human technician if you cannot resolve the issue.
-8. Be concise in your responses. Keep answers focused and avoid unnecessary elaboration.
+8. CRITICAL: Be extremely concise - use 1-3 sentences maximum per response. Keep answers brief, focused, and actionable. Avoid explanations unless explicitly requested.
 """
 
 
@@ -295,8 +295,22 @@ async def entrypoint(ctx: JobContext):
         llm=google.realtime.RealtimeModel(
             model=os.getenv("GEMINI_REALTIME_MODEL", "gemini-2.0-flash-exp"),
             voice=os.getenv("GEMINI_VOICE", "Puck"),
-            temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.6")),
+            temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.8")),
+            # Optimize for faster responses
+            max_output_tokens=512,  # Limit response length for faster generation
         ),
+        # LATENCY OPTIMIZATIONS:
+        # Reduce turn detection delay from 500ms default to 300ms for faster responses
+        min_endpointing_delay=0.3,
+        # Allow max 3 seconds of silence before forcing turn end
+        max_endpointing_delay=3.0,
+        # Enable preemptive generation - starts LLM response before turn fully commits
+        # This can reduce latency by overlapping model inference with user audio
+        preemptive_generation=True,
+        # Allow interruptions for more natural conversation flow
+        allow_interruptions=True,
+        # Reduce interruption threshold for more responsive interruptions
+        min_interruption_duration=0.3,
     )
 
     await session.start(
