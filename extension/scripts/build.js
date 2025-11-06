@@ -8,9 +8,18 @@ import { ensureIcons } from './generate-icons.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const rootEnv = dotenv.config({ path: join(__dirname, '../../.env') })
+// Try loading .env from multiple locations (for both local and Docker builds)
+let rootEnv = dotenv.config({ path: join(__dirname, '../../.env') })
 if (rootEnv.error) {
-  dotenv.config({ path: join(__dirname, '../../.env.example') })
+  // Try current working directory (Docker mounts .env here)
+  rootEnv = dotenv.config({ path: join(process.cwd(), '.env') })
+}
+if (rootEnv.error) {
+  // Fall back to example file
+  rootEnv = dotenv.config({ path: join(__dirname, '../../.env.example') })
+}
+if (rootEnv.error) {
+  console.warn('⚠️  No .env file found - using environment variables from system')
 }
 
 const env = process.env
@@ -18,14 +27,18 @@ const env = process.env
 const outdir = join(__dirname, '../dist')
 mkdirSync(outdir, { recursive: true })
 mkdirSync(join(outdir, 'popup'), { recursive: true })
+mkdirSync(join(outdir, 'offscreen'), { recursive: true })
+mkdirSync(join(outdir, 'request-permission'), { recursive: true })
 
 ensureIcons()
 
 const define = {}
 const exposedEnvKeys = [
+  'NODE_ENV',
   'BACKEND_BASE_URL',
   'GOOGLE_OAUTH_CLIENT_ID',
-  'GOOGLE_OAUTH_REDIRECT_URI'
+  'GOOGLE_OAUTH_REDIRECT_URI',
+  'ALLOW_DEV_TOKENS'
 ]
 
 for (const key of exposedEnvKeys) {
@@ -34,12 +47,14 @@ for (const key of exposedEnvKeys) {
 
 await build({
   entryPoints: {
-    'background.js': join(__dirname, '../src/background/index.js'),
-    'popup/popup.js': join(__dirname, '../src/popup/popup.js')
+    'background': join(__dirname, '../src/background/index.js'),
+    'popup/popup': join(__dirname, '../src/popup/popup.js'),
+    'offscreen/offscreen': join(__dirname, '../src/offscreen/offscreen.js')
   },
   bundle: true,
   format: 'esm',
   outdir,
+  outExtension: { '.js': '.js' },
   sourcemap: true,
   target: ['chrome110'],
   loader: {
@@ -49,9 +64,19 @@ await build({
 })
 
 const manifest = JSON.parse(readFileSync(join(__dirname, '../src/manifest.json'), 'utf-8'))
-if (manifest.oauth2 && env.GOOGLE_OAUTH_CLIENT_ID) {
-  manifest.oauth2.client_id = env.GOOGLE_OAUTH_CLIENT_ID
+
+// Configure OAuth client ID
+if (manifest.oauth2) {
+  if (env.GOOGLE_OAUTH_CLIENT_ID) {
+    manifest.oauth2.client_id = env.GOOGLE_OAUTH_CLIENT_ID
+  } else {
+    console.warn('⚠️  GOOGLE_OAUTH_CLIENT_ID not set - OAuth will not work')
+    // Set a placeholder to prevent manifest errors
+    manifest.oauth2.client_id = 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com'
+  }
 }
+
+// Add backend URL to host permissions
 if (manifest.host_permissions && env.BACKEND_BASE_URL) {
   try {
     const backendUrl = new URL(env.BACKEND_BASE_URL)
@@ -63,9 +88,13 @@ if (manifest.host_permissions && env.BACKEND_BASE_URL) {
     console.warn('Invalid BACKEND_BASE_URL for host permissions', error)
   }
 }
+
 writeFileSync(join(outdir, 'manifest.json'), JSON.stringify(manifest, null, 2))
 cpSync(join(__dirname, '../src/popup/popup.html'), join(outdir, 'popup/popup.html'))
 cpSync(join(__dirname, '../src/popup/popup.css'), join(outdir, 'popup/popup.css'))
+cpSync(join(__dirname, '../src/offscreen/offscreen.html'), join(outdir, 'offscreen/offscreen.html'))
+cpSync(join(__dirname, '../src/request-permission/request-permission.html'), join(outdir, 'request-permission/request-permission.html'))
+cpSync(join(__dirname, '../src/request-permission/request-permission.js'), join(outdir, 'request-permission/request-permission.js'))
 
 // Copy public assets
 try {

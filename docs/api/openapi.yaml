@@ -1,0 +1,658 @@
+openapi: 3.0.3
+info:
+  title: Scogo AI IT Support Assistant API
+  description: |
+    RESTful API for Scogo AI IT Support Assistant - A vision-enabled AI assistant for real-time IT support.
+
+    ## Authentication
+    All protected endpoints require a valid Google OAuth token in the Authorization header:
+    ```
+    Authorization: Bearer <google-oauth-token>
+    ```
+
+    ## Session Management
+    Sessions represent active support conversations between users and the AI agent.
+    Each session has a unique room in LiveKit for real-time communication.
+
+    ## Error Responses
+    All endpoints follow a consistent error response format:
+    ```json
+    {
+      "error": "Error message description"
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: Scogo Support
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:4000/api
+    description: Local development server
+  - url: https://api.scogo.ai/api
+    description: Production server
+
+tags:
+  - name: Health
+    description: Service health and status
+  - name: Config
+    description: Client configuration
+  - name: Auth
+    description: Authentication and tokens
+  - name: Sessions
+    description: Support session management
+  - name: Feedback
+    description: User feedback collection
+
+components:
+  securitySchemes:
+    GoogleOAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Google OAuth 2.0 access token
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: Invalid session ID
+
+    Health:
+      type: object
+      required:
+        - status
+        - timestamp
+        - environment
+        - uptime
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, error]
+          description: Overall service health status
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of health check
+          example: '2025-11-06T12:00:00.000Z'
+        environment:
+          type: string
+          enum: [development, staging, production]
+          description: Deployment environment
+          example: development
+        version:
+          type: string
+          description: Application version
+          example: 1.0.0
+        uptime:
+          type: number
+          description: Server uptime in seconds
+          example: 3600.5
+        services:
+          type: object
+          description: Status of dependent services
+          properties:
+            livekit:
+              type: object
+              properties:
+                configured:
+                  type: boolean
+                  description: Whether LiveKit credentials are configured
+                  example: true
+                host:
+                  type: string
+                  description: LiveKit WebSocket URL
+                  example: wss://scogo-vision-ai.livekit.cloud
+            storage:
+              type: object
+              properties:
+                sessions:
+                  type: integer
+                  description: Number of active sessions in memory
+                  example: 5
+
+    ClientConfig:
+      type: object
+      required:
+        - livekitHost
+        - environment
+      properties:
+        livekitHost:
+          type: string
+          format: uri
+          description: LiveKit WebSocket URL for client connections
+          example: wss://scogo-vision-ai.livekit.cloud
+        environment:
+          type: string
+          enum: [development, staging, production]
+          description: Current deployment environment
+          example: development
+
+    LiveKitTokenRequest:
+      type: object
+      required:
+        - roomName
+      properties:
+        roomName:
+          type: string
+          description: Unique room identifier for the session
+          pattern: '^[a-zA-Z0-9_-]+$'
+          minLength: 1
+          maxLength: 128
+          example: session-abc123
+        identity:
+          type: string
+          description: Optional participant identity (defaults to authenticated user email)
+          example: user@example.com
+
+    LiveKitTokenResponse:
+      type: object
+      required:
+        - token
+        - roomName
+      properties:
+        token:
+          type: string
+          description: JWT token for LiveKit room access
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        roomName:
+          type: string
+          description: Room name this token is valid for
+          example: session-abc123
+
+    SessionLog:
+      type: object
+      required:
+        - sessionId
+        - roomName
+      properties:
+        sessionId:
+          type: string
+          description: Unique session identifier
+          example: session-abc123
+        roomName:
+          type: string
+          description: LiveKit room name
+          example: session-abc123
+        userId:
+          type: string
+          description: User email from OAuth token
+          example: user@example.com
+        startedAt:
+          type: string
+          format: date-time
+          description: Session start timestamp
+          example: '2025-11-06T12:00:00.000Z'
+        endedAt:
+          type: string
+          format: date-time
+          description: Session end timestamp (null if active)
+          nullable: true
+          example: '2025-11-06T12:30:00.000Z'
+        metadata:
+          type: object
+          description: Additional session metadata
+          additionalProperties: true
+          example:
+            userAgent: 'Mozilla/5.0...'
+            extensionVersion: '1.0.0'
+
+    SessionLogRequest:
+      type: object
+      required:
+        - sessionId
+        - roomName
+      properties:
+        sessionId:
+          type: string
+          description: Unique session identifier
+          example: session-abc123
+        roomName:
+          type: string
+          description: LiveKit room name
+          example: session-abc123
+        metadata:
+          type: object
+          description: Optional metadata to attach to session
+          additionalProperties: true
+
+    SessionResponse:
+      type: object
+      required:
+        - sessionId
+        - roomName
+        - userId
+        - startedAt
+      properties:
+        sessionId:
+          type: string
+          example: session-abc123
+        roomName:
+          type: string
+          example: session-abc123
+        userId:
+          type: string
+          example: user@example.com
+        startedAt:
+          type: string
+          format: date-time
+          example: '2025-11-06T12:00:00.000Z'
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        metadata:
+          type: object
+          additionalProperties: true
+        screenShare:
+          type: object
+          nullable: true
+          description: Screen sharing metadata
+          properties:
+            active:
+              type: boolean
+              example: true
+            lastFrameAt:
+              type: string
+              format: date-time
+              example: '2025-11-06T12:15:00.000Z'
+
+    ScreenFrameUpload:
+      type: object
+      required:
+        - frame
+      properties:
+        frame:
+          type: string
+          format: byte
+          description: Base64-encoded screen frame image (JPEG/PNG)
+
+    FeedbackRequest:
+      type: object
+      required:
+        - rating
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: User satisfaction rating (1-5 stars)
+          example: 5
+        comment:
+          type: string
+          description: Optional user feedback text
+          maxLength: 2000
+          example: The AI assistant was very helpful!
+        sessionId:
+          type: string
+          description: Associated session ID
+          example: session-abc123
+        metadata:
+          type: object
+          description: Additional feedback metadata
+          additionalProperties: true
+
+    FeedbackResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Thank you for your feedback!
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Unauthorized - Invalid or expired token
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Session not found
+
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Invalid request body
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: An unexpected error occurred
+
+paths:
+  /health:
+    get:
+      summary: Get service health status
+      description: Returns comprehensive health information about the backend service and its dependencies
+      tags:
+        - Health
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Health'
+                  - type: object
+                    properties:
+                      status:
+                        example: error
+
+  /config:
+    get:
+      summary: Get client configuration
+      description: Returns configuration needed by client applications (extension, web app)
+      tags:
+        - Config
+      operationId: getClientConfig
+      responses:
+        '200':
+          description: Configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientConfig'
+
+  /token/livekit:
+    post:
+      summary: Generate LiveKit access token
+      description: |
+        Generates a JWT token for connecting to a LiveKit room.
+        The token includes permissions for publishing and subscribing to tracks.
+        Token TTL is configured via LIVEKIT_TOKEN_TTL_SECONDS (default 6 hours).
+      tags:
+        - Auth
+      operationId: createLiveKitToken
+      security:
+        - GoogleOAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiveKitTokenRequest'
+      responses:
+        '200':
+          description: Token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveKitTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /session/log:
+    post:
+      summary: Create or update session log
+      description: |
+        Creates a new session or updates an existing one.
+        Sessions are stored in memory and track user support interactions.
+      tags:
+        - Sessions
+      operationId: upsertSessionLog
+      security:
+        - GoogleOAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionLogRequest'
+      responses:
+        '200':
+          description: Session created/updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /session:
+    get:
+      summary: List all sessions
+      description: Returns all sessions for the authenticated user
+      tags:
+        - Sessions
+      operationId: listSessions
+      security:
+        - GoogleOAuth: []
+      responses:
+        '200':
+          description: Sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /session/{sessionId}:
+    get:
+      summary: Get session by ID
+      description: Retrieves a specific session by its unique identifier
+      tags:
+        - Sessions
+      operationId: getSessionById
+      security:
+        - GoogleOAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: Unique session identifier
+          schema:
+            type: string
+            example: session-abc123
+      responses:
+        '200':
+          description: Session found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /session/by-room/{roomName}:
+    get:
+      summary: Get session by room name
+      description: Retrieves a session by its LiveKit room name
+      tags:
+        - Sessions
+      operationId: getSessionByRoomName
+      security:
+        - GoogleOAuth: []
+      parameters:
+        - name: roomName
+          in: path
+          required: true
+          description: LiveKit room name
+          schema:
+            type: string
+            example: session-abc123
+      responses:
+        '200':
+          description: Session found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /session/{sessionId}/screen-frame:
+    post:
+      summary: Upload screen share frame
+      description: |
+        Uploads a screen capture frame for the AI agent to analyze.
+        Frames should be JPEG or PNG format, base64-encoded.
+        Maximum recommended resolution: 1920x1080.
+      tags:
+        - Sessions
+      operationId: uploadScreenFrame
+      security:
+        - GoogleOAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+            example: session-abc123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScreenFrameUpload'
+      responses:
+        '200':
+          description: Frame uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Screen frame uploaded
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      summary: Mark screen share as inactive
+      description: Indicates that screen sharing has ended for this session
+      tags:
+        - Sessions
+      operationId: markScreenShareInactive
+      security:
+        - GoogleOAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+            example: session-abc123
+      responses:
+        '200':
+          description: Screen share marked inactive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Screen share marked inactive
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /feedback:
+    post:
+      summary: Submit user feedback
+      description: |
+        Collects user feedback about their support experience.
+        Feedback includes a rating (1-5) and optional comments.
+      tags:
+        - Feedback
+      operationId: submitFeedback
+      security:
+        - GoogleOAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+      responses:
+        '200':
+          description: Feedback submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
