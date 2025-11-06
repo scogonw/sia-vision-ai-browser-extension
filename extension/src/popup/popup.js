@@ -27,6 +27,7 @@ let currentSession = null
 let callStartTime = null
 let timerInterval = null
 let selectedRating = 0
+let isStartingSession = false // Prevent double-clicks
 
 // Utility Functions
 const sendMessage = (payload) => new Promise((resolve) => {
@@ -211,6 +212,13 @@ const requestMicrophonePermission = async () => {
 
 // Session Management
 const startSession = async () => {
+  // Prevent multiple simultaneous session starts
+  if (isStartingSession) {
+    console.log('[Popup] Session start already in progress, ignoring duplicate call')
+    return
+  }
+
+  isStartingSession = true
   clearAlerts()
   updateUiState('connecting')
 
@@ -224,14 +232,17 @@ const startSession = async () => {
     if (!response?.success) {
       showError(response?.error || 'Could not start session')
       updateUiState('idle')
+      isStartingSession = false
       return
     }
     currentSession = response.sessionInfo
     updateUiState('connected')
     showSuccess('Connected to support!')
+    isStartingSession = false
   } catch (error) {
     showError('Connection error: ' + error.message)
     updateUiState('idle')
+    isStartingSession = false
   }
 }
 

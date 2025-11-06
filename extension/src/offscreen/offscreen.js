@@ -6,7 +6,24 @@ const sessionManager = new SessionManager()
 
 // Handle messages from the service worker
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('[Offscreen] Received message:', message.type)
+  if (message?.source !== 'background') {
+    try {
+      console.log('[Offscreen] Ignoring message without background source:', {
+        type: message?.type,
+        source: message?.source,
+        senderUrl: sender?.url || null,
+        senderOrigin: sender?.origin || null
+      })
+    } catch (error) {
+      console.log('[Offscreen] Failed to log ignored message', error)
+    }
+    return false
+  }
+
+  console.log('[Offscreen] Received message:', message.type, {
+    senderUrl: sender?.url || null,
+    senderOrigin: sender?.origin || null
+  })
 
   ;(async () => {
     try {

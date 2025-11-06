@@ -9,6 +9,8 @@ chrome.action.onClicked.addListener((tab) => {
 
 // Offscreen document management
 let offscreenDocumentCreated = false
+let isStartingSession = false // Prevent duplicate START_SESSION calls
+let offscreenDocumentId = null
 
 async function ensureOffscreenDocument() {
   if (offscreenDocumentCreated) {
@@ -21,6 +23,7 @@ async function ensureOffscreenDocument() {
 
   if (existingContexts.length > 0) {
     offscreenDocumentCreated = true
+    offscreenDocumentId = existingContexts[0].documentId
     return
   }
 
@@ -31,26 +34,54 @@ async function ensureOffscreenDocument() {
   })
 
   offscreenDocumentCreated = true
+  const contextsAfterCreate = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT']
+  })
+  offscreenDocumentId = contextsAfterCreate[0]?.documentId || null
   console.log('[Background] Offscreen document created')
 }
 
 // Send message to offscreen document
 async function sendToOffscreen(message) {
   await ensureOffscreenDocument()
+
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message))
-      } else if (response && !response.success) {
-        reject(new Error(response.error || 'Unknown error'))
-      } else {
-        resolve(response)
+    chrome.runtime.sendMessage(
+      {
+        ...message,
+        source: 'background'
+      },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message))
+        } else if (response && !response.success) {
+          reject(new Error(response.error || 'Unknown error'))
+        } else {
+          resolve(response)
+        }
       }
-    })
+    )
   })
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  try {
+    console.log('[Background] onMessage received:', {
+      type: message?.type,
+      source: message?.source,
+      senderUrl: sender?.url || null,
+      senderOrigin: sender?.origin || null,
+      frameId: sender?.frameId ?? null
+    })
+  } catch (error) {
+    console.log('[Background] Failed to log incoming message', error)
+  }
+
+  if (message?.source === 'background') {
+    // Ignore messages that originate from this service worker to prevent loops
+    return false
+  }
+
   ;(async () => {
     try {
       switch (message.type) {
@@ -65,20 +96,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break
         }
         case 'START_SESSION': {
-          const response = await sendToOffscreen({ type: 'START_SESSION' })
-          sendResponse(response)
+          if (isStartingSession) {
+            console.log('[Background] ⚠️  START_SESSION already in progress, rejecting duplicate call')
+            sendResponse({ success: false, error: 'Session start already in progress' })
+            break
+          }
+          isStartingSession = true
+          console.log('[Background] START_SESSION - Forwarding to offscreen document')
+          try {
+            const response = await sendToOffscreen({ type: 'START_SESSION' })
+            console.log('[Background] START_SESSION - Response:', response)
+            sendResponse(response)
+          } finally {
+            isStartingSession = false
+          }
           break
         }
         case 'END_SESSION': {
+          console.log('[Background] END_SESSION - Forwarding to offscreen document')
           const response = await sendToOffscreen({ type: 'END_SESSION' })
+          console.log('[Background] END_SESSION - Response:', response)
           sendResponse(response)
           break
         }
         case 'MUTE_MICROPHONE': {
+          console.log('[Background] MUTE_MICROPHONE - Forwarding to offscreen document')
           const response = await sendToOffscreen({
             type: 'MUTE_MICROPHONE',
             muted: message.muted
           })
+          sendResponse(response)
+          break
+        }
+        case 'START_SCREEN_SHARE': {
+          console.log('[Background] START_SCREEN_SHARE - Forwarding to offscreen document')
+          const response = await sendToOffscreen({ type: 'START_SCREEN_SHARE' })
+          console.log('[Background] START_SCREEN_SHARE - Response:', response)
           sendResponse(response)
           break
         }
@@ -89,6 +142,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         case 'SUBMIT_FEEDBACK': {
           await postToBackend('/api/feedback', message.payload)
+          sendResponse({ success: true })
+          break
+        }
+        case 'DEBUG_LOG': {
+          // Log messages from offscreen document to service worker console
+          console.log('[Offscreen]', message.message)
           sendResponse({ success: true })
           break
         }
