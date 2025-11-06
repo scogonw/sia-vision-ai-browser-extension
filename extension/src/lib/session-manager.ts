@@ -389,6 +389,34 @@ export class SessionManager {
     await this.publishScreenShare()
   }
 
+  async stopScreenShare () {
+    log('[SessionManager] Stopping screen share')
+    if (!this.screenTrack) {
+      console.warn('[SessionManager] No screen share active')
+      return
+    }
+
+    // Stop the screen capture loop
+    this.stopScreenCaptureLoop()
+
+    // Unpublish and stop the screen tracks
+    if (this.room?.localParticipant) {
+      if (this.screenTrack) {
+        await this.room.localParticipant.unpublishTrack(this.screenTrack)
+        this.screenTrack.stop()
+        this.screenTrack = null
+      }
+      if (this.screenAudioTrack) {
+        await this.room.localParticipant.unpublishTrack(this.screenAudioTrack)
+        this.screenAudioTrack.stop()
+        this.screenAudioTrack = null
+      }
+    }
+
+    log('[SessionManager] Screen share stopped')
+    chrome.runtime.sendMessage({ type: 'SCREEN_SHARE_ENDED' }).catch(() => {})
+  }
+
   async ensureAuthToken () {
     if (this.cachedAuthToken) return this.cachedAuthToken
     this.cachedAuthToken = await this.auth.getToken()

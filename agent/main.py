@@ -17,6 +17,7 @@ from livekit.agents import (
     Agent,
     AgentSession,
     JobContext,
+    RoomInputOptions,
     WorkerOptions,
     cli,
 )
@@ -29,23 +30,18 @@ logger = logging.getLogger("scogo.it.support.agent")
 load_dotenv()
 
 KNOWLEDGE_BASE_PATH = Path(os.getenv("KNOWLEDGE_BASE_PATH", "agent/knowledge_base"))
-DEFAULT_SCREEN_CONTEXT = "Screen share inactive. No frames received yet."
 BASE_INSTRUCTIONS = """
-You are Scogo AI Support Assistant, an expert enterprise IT support specialist.
+You are Scogo AI Support Assistant, an expert enterprise IT support specialist with vision capabilities.
 
 Conversation policy:
 1. Start every session by greeting the user and asking for a concise description of their issue.
 2. Listen to the user, restate the problem to confirm understanding, and gather any missing details.
-3. Invite the user to share their screen as soon as it will help you diagnose the problem. If the current screen status indicates no recent frames, remind the user how to share their screen.
-4. Only acknowledge that you can see the user's screen when the telemetry below confirms an active feed with fresh frames. Never guess about UI elements you cannot verify.
-5. If the user claims that they shared their screen but the telemetry still shows no frames, politely ask them to try again and offer troubleshooting steps.
-6. When the screen share is active, use the latest screen summary to ground your guidance in what is actually visible. Reference specific UI elements only if they appear in the summary.
-7. Provide step-by-step instructions, pause after each step for confirmation, and keep a professional, friendly tone.
-8. Summarize progress frequently and offer to escalate to a human technician if you cannot resolve the issue.
-9. Be concise in your responses. Keep answers focused and avoid unnecessary elaboration.
-
-Current screen telemetry:
-{screen_context}
+3. Invite the user to share their screen as soon as it will help you diagnose the problem.
+4. When the user shares their screen, you will automatically receive video frames. Use the visual information to provide accurate guidance based on what you can actually see.
+5. If you cannot see the screen clearly or the screen share is not active, let the user know and ask them to share their screen.
+6. Provide step-by-step instructions, pause after each step for confirmation, and keep a professional, friendly tone.
+7. Summarize progress frequently and offer to escalate to a human technician if you cannot resolve the issue.
+8. Be concise in your responses. Keep answers focused and avoid unnecessary elaboration.
 """
 
 
@@ -175,25 +171,13 @@ class BackendClient:
 
 class ITSupportAgent(Agent):
     def __init__(self, knowledge_base: str) -> None:
-        self._knowledge_base = knowledge_base
-        self._screen_context = DEFAULT_SCREEN_CONTEXT
-        super().__init__(instructions=self._build_instructions())
-
-    def _build_instructions(self) -> str:
-        instructions = BASE_INSTRUCTIONS.format(screen_context=self._screen_context)
-        if self._knowledge_base:
+        instructions = BASE_INSTRUCTIONS
+        if knowledge_base:
             instructions += (
-                "\nUse the following IT knowledge base when answering questions:\n"
-                f"{self._knowledge_base}"
+                "\n\nUse the following IT knowledge base when answering questions:\n"
+                f"{knowledge_base}"
             )
-        return instructions
-
-    def update_screen_context(self, context: str) -> None:
-        if context == self._screen_context:
-            return
-        self._screen_context = context
-        self.instructions = self._build_instructions()
-        logger.debug("Agent instructions updated with new screen context: %s", context)
+        super().__init__(instructions=instructions)
 
 
 class ScreenShareMonitor:
@@ -225,7 +209,10 @@ class ScreenShareMonitor:
             try:
                 response = await self._backend.get_session(self._session_id, include_frame=True)
                 if response and "session" in response:
+                    logger.info("[ScreenMonitor] Received session response, processing screen share data")
                     self._handle_session_response(response["session"])
+                else:
+                    logger.warning("[ScreenMonitor] No session data in backend response")
             except Exception:  # noqa: BLE001
                 logger.exception("Unexpected error while polling screen frames")
             await asyncio.sleep(self._poll_interval)
@@ -233,8 +220,11 @@ class ScreenShareMonitor:
     def _handle_session_response(self, session: dict) -> None:
         screen = session.get("screenShare")
         if not screen:
+            logger.info("[ScreenMonitor] No screen share data in session")
             self._agent.update_screen_context("Screen share inactive. No frames have been received yet.")
             return
+
+        logger.info("[ScreenMonitor] Screen share active=%s, frames=%s", screen.get("active"), screen.get("framesReceived", 0))
 
         captured_at = parse_iso_timestamp(screen.get("lastFrameAt"))
         digest = screen.get("lastFrameDigest")
@@ -256,9 +246,11 @@ class ScreenShareMonitor:
         if digest != self._last_digest:
             self._last_digest = digest
             frame_data = screen.get("lastFrame")
+            logger.info("[ScreenMonitor] New frame detected, digest=%s, has_frame_data=%s", digest, bool(frame_data))
             observation = analyze_screen_frame_fast(frame_data) if frame_data else ScreenObservation()
             observation.digest = digest
             observation.captured_at = captured_at
+            logger.info("[ScreenMonitor] Frame analyzed: %s", observation.to_prompt())
         else:
             # reuse last prompt if still fresh
             if self._last_base_prompt:
@@ -307,26 +299,19 @@ async def entrypoint(ctx: JobContext):
         ),
     )
 
-    await session.start(agent=agent, room=ctx.room)
+    await session.start(
+        agent=agent,
+        room=ctx.room,
+        room_input_options=RoomInputOptions(
+            video_enabled=True,  # Enable video frames from screen share
+        ),
+    )
 
-    backend_base_url = os.getenv("BACKEND_BASE_URL")
-    agent_api_key = os.getenv("AGENT_API_KEY")
-    monitor: Optional[ScreenShareMonitor] = None
-
-    if backend_base_url:
-        backend_client = BackendClient(backend_base_url, agent_api_key)
-        session_metadata = await backend_client.get_session_by_room(ctx.room.name)
-        if not session_metadata:
-            logger.warning(
-                "Unable to locate session metadata for room %s. Screen monitoring disabled.",
-                ctx.room.name,
-            )
-        else:
-            session_id = session_metadata["session"]["sessionId"]
-            monitor = ScreenShareMonitor(backend_client, agent)
-            monitor.start(session_id)
-    else:
-        logger.warning("BACKEND_BASE_URL not configured. Screen monitoring disabled.")
+    # NOTE: Video frames from screen sharing are now handled automatically by LiveKit's AgentSession
+    # with video_enabled=True in RoomInputOptions. The Gemini Live API receives frames at 1 FPS
+    # while the user speaks, and 0.3 FPS otherwise. This is the proper LiveKit approach instead
+    # of custom backend polling.
+    logger.info("Video frames from screen share will be automatically sent to Gemini Live API")
 
     await session.generate_reply(
         instructions=(
