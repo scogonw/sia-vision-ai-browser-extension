@@ -6,6 +6,7 @@ const startButton = document.getElementById('start-button')
 const endButton = document.getElementById('end-button')
 const muteButton = document.getElementById('mute-button')
 const shareScreenButton = document.getElementById('share-screen-button')
+const unshareScreenButton = document.getElementById('unshare-screen-button')
 const feedbackButton = document.getElementById('feedback-button')
 const feedbackSection = document.getElementById('feedback-section')
 const ratingStars = document.getElementById('rating-stars')
@@ -28,6 +29,7 @@ let callStartTime = null
 let timerInterval = null
 let selectedRating = 0
 let isStartingSession = false // Prevent double-clicks
+let isScreenSharing = false
 
 // Utility Functions
 const sendMessage = (payload) => new Promise((resolve) => {
@@ -101,6 +103,7 @@ const updateUiState = (state) => {
       startButton.classList.add('hidden')
       activeControls.classList.remove('hidden')
       shareScreenButton.classList.remove('hidden')
+      unshareScreenButton.classList.add('hidden')
       feedbackButton.classList.remove('hidden')
       statusText.textContent = 'Session active'
       updateStatusDot('listening')
@@ -114,6 +117,7 @@ const updateUiState = (state) => {
       shareScreenButton.classList.add('hidden')
       shareScreenButton.textContent = 'Share Your Screen'
       shareScreenButton.disabled = false
+      unshareScreenButton.classList.add('hidden')
       feedbackButton.classList.add('hidden')
       feedbackSection.classList.add('hidden')
       statusText.textContent = 'Ready to help'
@@ -122,6 +126,7 @@ const updateUiState = (state) => {
       isMuted = false
       muteButton.classList.remove('muted')
       currentSession = null
+      isScreenSharing = false
       break
 
     default:
@@ -296,8 +301,27 @@ const startScreenShare = async () => {
       return
     }
     showSuccess('Screen sharing started')
-    shareScreenButton.textContent = 'Screen Sharing Active'
-    shareScreenButton.disabled = true
+    shareScreenButton.classList.add('hidden')
+    unshareScreenButton.classList.remove('hidden')
+    isScreenSharing = true
+  } catch (error) {
+    showError('Screen sharing error: ' + error.message)
+  }
+}
+
+const stopScreenShare = async () => {
+  clearAlerts()
+  try {
+    console.log('[Popup] Stopping screen share...')
+    const response = await sendMessage({ type: 'STOP_SCREEN_SHARE' })
+    if (!response?.success) {
+      showError(response?.error || 'Could not stop screen sharing')
+      return
+    }
+    showSuccess('Screen sharing stopped')
+    shareScreenButton.classList.remove('hidden')
+    unshareScreenButton.classList.add('hidden')
+    isScreenSharing = false
   } catch (error) {
     showError('Screen sharing error: ' + error.message)
   }
@@ -381,6 +405,7 @@ startButton.addEventListener('click', startSession)
 endButton.addEventListener('click', endSession)
 muteButton.addEventListener('click', toggleMute)
 shareScreenButton.addEventListener('click', startScreenShare)
+unshareScreenButton.addEventListener('click', stopScreenShare)
 feedbackButton.addEventListener('click', openFeedback)
 submitFeedbackBtn.addEventListener('click', submitFeedbackForm)
 cancelFeedbackBtn.addEventListener('click', closeFeedback)

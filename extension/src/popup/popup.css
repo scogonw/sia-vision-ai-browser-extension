@@ -376,6 +376,18 @@ body {
   transform: translateY(-2px) scale(1.05);
 }
 
+.btn-warning {
+  background: linear-gradient(135deg, var(--warning-amber), #d97706);
+  color: var(--text-on-dark);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+.btn-warning:not(:disabled):hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+  transform: translateY(-2px);
+}
+
 .btn-secondary {
   background: var(--bg-tertiary);
   color: var(--text-primary);

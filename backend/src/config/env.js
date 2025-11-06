@@ -20,6 +20,7 @@ const envSchema = Joi.object({
   LIVEKIT_TOKEN_TTL_SECONDS: Joi.number().integer().min(60).default(60 * 60 * 6),
   SESSION_LOG_RETENTION_DAYS: Joi.number().integer().min(1).default(90),
   ALLOW_DEV_TOKENS: Joi.boolean().default(false),
+  AGENT_API_KEY: Joi.string().allow('').default(''),
   GEMINI_API_KEY: Joi.string().allow('').default(''),
   KNOWLEDGE_BASE_PATH: Joi.string().default('agent/knowledge_base'),
   LOG_LEVEL: Joi.string().valid('fatal', 'error', 'warn', 'info', 'debug', 'trace').default('info')
@@ -49,6 +50,7 @@ export const env = {
   },
   sessionLogRetentionDays: value.SESSION_LOG_RETENTION_DAYS,
   allowDevTokens: value.ALLOW_DEV_TOKENS,
+  agentApiKey: value.AGENT_API_KEY,
   geminiApiKey: value.GEMINI_API_KEY,
   knowledgeBasePath: value.KNOWLEDGE_BASE_PATH,
   logLevel: value.LOG_LEVEL

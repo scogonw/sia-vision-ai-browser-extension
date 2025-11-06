@@ -1,7 +1,8 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: ./backend/Dockerfile
     container_name: scogo-backend
     env_file:
       - .env
@@ -9,6 +10,8 @@ services:
       PORT: ${PORT:-4000}
     ports:
       - "${PORT:-4000}:${PORT:-4000}"
+    volumes:
+      - ./docs:/app/docs:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:${PORT:-4000}/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
@@ -25,6 +28,7 @@ services:
       - .env
     environment:
       KNOWLEDGE_BASE_PATH: /app/agent/knowledge_base
+      BACKEND_BASE_URL: http://scogo-backend:${PORT:-4000}
     volumes:
       - ./agent/knowledge_base:/app/agent/knowledge_base:ro
     depends_on:

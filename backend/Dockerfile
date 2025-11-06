@@ -3,10 +3,15 @@ FROM node:20-bullseye-slim AS base
 
 WORKDIR /app
 
-COPY package*.json ./
+# Copy package files from backend directory
+COPY backend/package*.json ./
 RUN npm ci --omit=dev
 
-COPY src ./src
+# Copy backend source
+COPY backend/src ./src
+
+# Copy docs directory for API documentation
+COPY docs ./docs
 
 ENV NODE_ENV=production
 EXPOSE 4000

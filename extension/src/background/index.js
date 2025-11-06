@@ -135,6 +135,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse(response)
           break
         }
+        case 'STOP_SCREEN_SHARE': {
+          console.log('[Background] STOP_SCREEN_SHARE - Forwarding to offscreen document')
+          const response = await sendToOffscreen({ type: 'STOP_SCREEN_SHARE' })
+          console.log('[Background] STOP_SCREEN_SHARE - Response:', response)
+          sendResponse(response)
+          break
+        }
         case 'LOG_EVENT': {
           await postToBackend('/api/session/log', message.payload)
           sendResponse({ success: true })

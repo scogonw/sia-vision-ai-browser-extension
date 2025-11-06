@@ -19,6 +19,17 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({ error: 'Missing bearer token' })
     }
 
+    if (env.agentApiKey && token === env.agentApiKey) {
+      req.user = {
+        email: 'agent-service@scogo.ai',
+        name: 'Agent Service',
+        sub: 'agent-service',
+        role: 'agent'
+      }
+      req.isAgent = true
+      return next()
+    }
+
     if (env.allowDevTokens && token === 'dev-token') {
       req.user = DEV_USER
       return next()

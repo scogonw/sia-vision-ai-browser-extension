@@ -56,6 +56,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           break
         }
 
+        case 'STOP_SCREEN_SHARE': {
+          console.log('[Offscreen] Stopping screen share')
+          await sessionManager.stopScreenShare()
+          sendResponse({ success: true })
+          break
+        }
+
         default:
           sendResponse({ success: false, error: 'Unknown message type' })
       }
